@@ -7,10 +7,12 @@ import com.rs.depositoretiro.vo.ExistDestinationAccountNumber;
 import com.rs.depositoretiro.vo.ExistIssuerAccountNumber;
 import com.rs.depositoretiro.vo.business.VOBusinessAccount;
 import com.rs.depositoretiro.vo.personal.VOPersonalBankAccount;
+import com.rs.depositoretiro.vo.personal.VOPersonalMovement;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Slf4j
@@ -31,6 +33,7 @@ public class DepositService {
                     "/account/"
             )
                     .flatMap(condition -> {
+                        //log.info("condition" + condition);
                        if (condition.equals(true)) {
                             return updatePersonalBalanceInMemory(deposit)
                                     .flatMap(this::updatePersonalBalance)
@@ -74,6 +77,7 @@ public class DepositService {
         return getPersonalAccount(deposit.getDestinationAccount())
                 .map(value->{
                     value.setBalance(value.getBalance()+deposit.getAmount());
+                    //log.info(value.toString());
                     return value;
                 });
     }
@@ -133,6 +137,18 @@ public class DepositService {
             return Mono.just(false);
         }));
 
+    }
+
+    public Flux<VOPersonalMovement> findAllPersonalMovement(Integer accountNumber){
+        //return depositRepository.existsByIssuerAccount(accountNumber)
+                //.flatMap(condition->{
+                    //if(condition.equals(true)){
+                        return depositRepository.findAllByDestinationAccount(accountNumber)
+                        .flatMap(value-> Flux.just(new VOPersonalMovement(value.getIssuerAccount(),value.getAmount())));
+                    //}
+                    //return Flux.empty();
+                    //return Mono.just(new VOPersonalBankAccount(1));
+                //});
     }
 
 

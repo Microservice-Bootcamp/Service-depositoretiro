@@ -5,10 +5,12 @@ import com.rs.depositoretiro.repository.WithdrawalRepository;
 import com.rs.depositoretiro.util.WebClientTemplate;
 import com.rs.depositoretiro.vo.ExistDestinationAccountNumber;
 import com.rs.depositoretiro.vo.business.VOBusinessAccount;
+import com.rs.depositoretiro.vo.business.VOBusinessMovement;
 import com.rs.depositoretiro.vo.personal.VOPersonalBankAccount;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -120,6 +122,10 @@ public class WithdrawalService {
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .bodyToMono(VOBusinessAccount.class);
+    }
+
+    public Flux<VOBusinessMovement> findAllMovement(Integer accountNumber){
+        return withdrawalRepository.findAllByAccount(accountNumber);
     }
 
 }
