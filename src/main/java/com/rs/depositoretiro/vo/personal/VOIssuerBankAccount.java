@@ -7,7 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
-public class VOPersonalBankAccount {
+public class VOIssuerBankAccount {
 
     private String idBankAccount;
 
@@ -18,5 +18,4 @@ public class VOPersonalBankAccount {
     private Integer maintenanceCharge;
     private Integer movementNumber;
     private Boolean benefitStatus;
-
 }

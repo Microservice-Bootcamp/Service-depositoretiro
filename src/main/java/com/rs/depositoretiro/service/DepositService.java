@@ -1,7 +1,9 @@
 package com.rs.depositoretiro.service;
 
 import com.rs.depositoretiro.entity.Deposit;
+import com.rs.depositoretiro.entity.Fees;
 import com.rs.depositoretiro.repository.DepositRepository;
+import com.rs.depositoretiro.repository.FeesRepositoty;
 import com.rs.depositoretiro.util.WebClientTemplate;
 import com.rs.depositoretiro.vo.ExistDestinationAccountNumber;
 import com.rs.depositoretiro.vo.ExistIssuerAccountNumber;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
+
 @Slf4j
 @Service
 public class DepositService {
@@ -23,46 +27,31 @@ public class DepositService {
     private DepositRepository depositRepository;
 
     @Autowired
+    private FeesRepositoty feesRepositoty;
+
+    @Autowired
     private WebClientTemplate webClientTemplate;
 
     public Mono<Deposit> saveTransactionOfPersonalAccount(Deposit deposit){
-        if(deposit.getAmount()>0) {
-            return exitPersonalAccountOfIssuerAndDestintion(
-                    deposit.getIssuerAccount(), deposit.getDestinationAccount(),
-                    "http://localhost:8081",
-                    "/account/"
-            )
-                    .flatMap(condition -> {
-                        //log.info("condition" + condition);
-                       if (condition.equals(true)) {
-                            return updatePersonalBalanceInMemory(deposit)
-                                    .flatMap(this::updatePersonalBalance)
-                                    .then(depositRepository.save(deposit));
-                        }
-                        return Mono.empty();
-                  });
-        }
-        return Mono.empty();
+        return getPersonalAccount(deposit.getDestinationAccount())
+                .filter(account ->account.getBalance() !=null && deposit.getAmount()>0)
+                .map(value ->{
+                    value.setBalance(value.getBalance()+deposit.getAmount());
+                    return value;
+                })
+                .flatMap(this::validateFessWithCriteria)
+                .then(depositRepository.save(deposit));
     }
-    public Mono<Deposit> saveTransactionofBuinessAccount(Deposit deposit){
-        if(deposit.getAmount()>0){
-            return exitPersonalAccountOfIssuerAndDestintion(
-                    deposit.getIssuerAccount(),
-                    deposit.getDestinationAccount(),
-                    "http://localhost:8083",
-                    "/account/status/"
-            )
-                    .flatMap(condition ->{
-                        if(condition.equals(true)){
-                            return updateBusinessBalanceInMemory(deposit)
-                                    .flatMap(this::updateBusinessBalance)
-                                    .then(depositRepository.save(deposit));
-                        }
-                       return Mono.empty();
 
-                    });
-        }
-        return Mono.empty();
+    public Mono<Deposit> saveTransactionofBuinessAccount(Deposit deposit){
+        return getBusinessAccount(deposit.getDestinationAccount())
+                .filter(account ->account.getBalance() !=null && deposit.getAmount()>0)
+                .map(value -> {
+                    value.setBalance(value.getBalance() + deposit.getAmount());
+                    return value;
+                })
+                .flatMap(this::validateFessWithCriteriaOfBusiness)
+                .then(depositRepository.save(deposit));
     }
 
 
@@ -72,14 +61,6 @@ public class DepositService {
                 .uri("/account/detail/"+accountNumber)
                 .retrieve()
                 .bodyToMono(VOPersonalBankAccount.class);
-    }
-    private Mono<VOPersonalBankAccount> updatePersonalBalanceInMemory(Deposit deposit){
-        return getPersonalAccount(deposit.getDestinationAccount())
-                .map(value->{
-                    value.setBalance(value.getBalance()+deposit.getAmount());
-                    //log.info(value.toString());
-                    return value;
-                });
     }
 
     private Mono<VOPersonalBankAccount> updatePersonalBalance(VOPersonalBankAccount voPersonalBankAccount){
@@ -109,49 +90,48 @@ public class DepositService {
                 .bodyToMono(VOBusinessAccount.class);
     }
 
-    private Mono<VOBusinessAccount> updateBusinessBalanceInMemory(Deposit deposit){
-        return getBusinessAccount(deposit.getDestinationAccount())
-                .map(value->{
-                    value.setBalance(value.getBalance()+deposit.getAmount());
-                    return value;
+    /**
+     * validate if transaction number exceeds to movement is charge fee
+     * update personal account bank
+     * @param voPersonalBankAccount same kind
+     * @return update this
+     */
+    private Mono<VOPersonalBankAccount> validateFessWithCriteria(VOPersonalBankAccount voPersonalBankAccount){
+        return depositRepository.countByDestinationAccount(voPersonalBankAccount.getAccountNumber())
+                .flatMap(condition -> {
+                    if(condition>= voPersonalBankAccount.getMovementNumber()){
+                        voPersonalBankAccount.setBalance(voPersonalBankAccount.getBalance()-voPersonalBankAccount.getMaintenanceCharge());
+                        return feesRepositoty.save(new Fees(voPersonalBankAccount.getAccountNumber(), voPersonalBankAccount.getMaintenanceCharge(), LocalDate.now()))
+                                .flatMap(value->updatePersonalBalance(voPersonalBankAccount));
+                    }
+                    else {
+                        return updatePersonalBalance(voPersonalBankAccount);
+                    }
+
+                });
+    }
+
+    private Mono<VOBusinessAccount> validateFessWithCriteriaOfBusiness(VOBusinessAccount voBusinessAccount){
+        return depositRepository.countByDestinationAccount(voBusinessAccount.getAccountNumber())
+                .flatMap(condition -> {
+                    if(condition>= voBusinessAccount.getMovementNumber()){
+                        voBusinessAccount.setBalance(voBusinessAccount.getBalance()-voBusinessAccount.getMaintenanceCharge());
+                        return feesRepositoty.save(new Fees(voBusinessAccount.getAccountNumber(), voBusinessAccount.getMaintenanceCharge(), LocalDate.now()))
+                                .flatMap(value->updateBusinessBalance(voBusinessAccount));
+                    }
+                    else {
+                        return updateBusinessBalance(voBusinessAccount);
+                    }
+
                 });
     }
 
 
-    private Mono<Boolean> exitPersonalAccountOfIssuerAndDestintion(Integer issuerAccountNumber, Integer destinationAccountNumber,String pathUrl, String uri){
-
-        var issuerResult = webClientTemplate.templateWebClient(pathUrl).get()
-                .uri(uri+issuerAccountNumber)
-                .retrieve()
-                .bodyToMono(ExistIssuerAccountNumber.class);
-
-        var destinationResult = webClientTemplate.templateWebClient(pathUrl).get()
-                .uri(uri+destinationAccountNumber)
-                .retrieve()
-                .bodyToMono(ExistDestinationAccountNumber.class);
-
-        return issuerResult.flatMap(issuer-> destinationResult.flatMap(destination->{
-            if(destination.getExitAccount()){
-                return Mono.just(true);
-            }
-            return Mono.just(false);
-        }));
-
-    }
-
     public Flux<VOPersonalMovement> findAllPersonalMovement(Integer accountNumber){
-        //return depositRepository.existsByIssuerAccount(accountNumber)
-                //.flatMap(condition->{
-                    //if(condition.equals(true)){
-                        return depositRepository.findAllByDestinationAccount(accountNumber)
-                        .flatMap(value-> Flux.just(new VOPersonalMovement(value.getIssuerAccount(),value.getAmount())));
-                    //}
-                    //return Flux.empty();
-                    //return Mono.just(new VOPersonalBankAccount(1));
-                //});
+        return depositRepository.findAllByDestinationAccount(accountNumber)
+                .filter(value->value.getAmount() !=null)
+                .flatMap(movement -> Flux.just(new VOPersonalMovement(movement.getDestinationAccount(),movement.getAmount(), movement.getDate())));
     }
-
-
 
 
 }

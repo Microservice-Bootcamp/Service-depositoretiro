@@ -11,16 +11,16 @@ import java.time.LocalDate;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "withdrawal")
-public class Withdrawal {
+@Document(collection = "interbancario")
+public class Transfer {
 
     @Id
-    private String idRetiro;
+    private String idTransfer;
 
-    private Integer account;
+    private Integer destinationAccount;
+    private Integer issuerAccount;
     private Integer amount;
 
     @Builder.Default
     private LocalDate date = LocalDate.now();
-
 }

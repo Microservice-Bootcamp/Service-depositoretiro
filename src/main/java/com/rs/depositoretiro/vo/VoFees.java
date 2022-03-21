@@ -1,7 +1,8 @@
-package com.rs.depositoretiro.vo.personal;
+package com.rs.depositoretiro.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
@@ -9,8 +10,9 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @AllArgsConstructor
-public class VOPersonalMovement {
-    private Integer issuerAccount;
+@NoArgsConstructor
+public class VoFees {
+
     private Integer amount;
     private LocalDate date;
 }

@@ -5,22 +5,26 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
+import java.util.Date;
 
-@Builder
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "withdrawal")
-public class Withdrawal {
-
+@Document(collection = "fees")
+public class Fees {
     @Id
-    private String idRetiro;
+    private String idFee;
 
     private Integer account;
     private Integer amount;
 
-    @Builder.Default
-    private LocalDate date = LocalDate.now();
 
+    private LocalDate date;
+
+    public Fees(Integer account, Integer amount, LocalDate date) {
+        this.account = account;
+        this.amount = amount;
+        this.date = date;
+    }
 }
