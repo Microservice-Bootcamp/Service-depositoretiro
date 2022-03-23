@@ -10,6 +10,7 @@ import com.rs.depositoretiro.vo.ExistIssuerAccountNumber;
 import com.rs.depositoretiro.vo.business.VOBusinessAccount;
 import com.rs.depositoretiro.vo.personal.VOPersonalBankAccount;
 import com.rs.depositoretiro.vo.personal.VOPersonalMovement;
+import com.rs.depositoretiro.vo.resume.ReportGeneral;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -132,6 +133,13 @@ public class DepositService {
                 .filter(value->value.getAmount() !=null)
                 .flatMap(movement -> Flux.just(new VOPersonalMovement(movement.getDestinationAccount(),movement.getAmount(), movement.getDate())));
     }
+
+    /*public Mono<ReportGeneral> resumeGeneralByAccount(Integer accountNumber){
+        return depositRepository.findAllByDestinationAccount(accountNumber)
+                .collectList()
+                .flatMap(value-> Mono.just(new ReportGeneral(accountNumber, value)));
+    }*/
+
 
 
 }

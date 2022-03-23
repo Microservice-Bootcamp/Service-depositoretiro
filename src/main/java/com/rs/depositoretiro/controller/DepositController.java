@@ -5,6 +5,7 @@ import com.rs.depositoretiro.service.DepositService;
 
 import com.rs.depositoretiro.vo.personal.VOPersonalBankAccount;
 import com.rs.depositoretiro.vo.personal.VOPersonalMovement;
+import com.rs.depositoretiro.vo.resume.ReportGeneral;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -44,4 +45,9 @@ public class DepositController {
     public ResponseEntity<Flux<VOPersonalMovement>> findAllMovement(@PathVariable("account") Integer accountNumber){
         return new ResponseEntity<>(depositService.findAllPersonalMovement(accountNumber), HttpStatus.OK);
     }
+
+    /*@GetMapping("/resume1/{account}")
+    public Mono<ReportGeneral> getmega(@PathVariable("account") Integer accountNumber){
+        return depositService.resumeGeneralByAccount(accountNumber);
+    }*/
 }
